@@ -2,6 +2,10 @@
 
 This MCP (Model Context Protocol) server automatically generates complete Cypress Page Object classes **AND** comprehensive test suites for any web page.
 
+<a href="https://glama.ai/mcp/servers/@jprealini/cypress-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@jprealini/cypress-mcp/badge" alt="Cypress Page Object & Test Generator MCP server" />
+</a>
+
 ## Features
 
 - **Web Scraping**: Uses Puppeteer to fetch and render web pages
@@ -218,4 +222,4 @@ The server uses Puppeteer with the following settings:
 
 ## Contributing
 
-To add support for new element types, interaction methods, or test patterns, modify the `generatePageObjectClass` and `generateCypressTests` functions in `main.ts`. 
+To add support for new element types, interaction methods, or test patterns, modify the `generatePageObjectClass` and `generateCypressTests` functions in `main.ts`.
