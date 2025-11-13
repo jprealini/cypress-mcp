@@ -2,16 +2,19 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod"
+
 import puppeteer from 'puppeteer'
 import * as cheerio from 'cheerio'
 import fs from 'fs/promises'
 import path from 'path'
 
-// Crear el servidor
+// Create the MCP server instance
 const server = new McpServer({
     name: "Cypress Generator MCP",
     version: "1.0.0"
 })
+
+// Here starts code generated using Copilot:
 
 // Utility functions for file operations
 class CypressFileManager {
@@ -56,7 +59,7 @@ class CypressFileManager {
             currentPath = path.dirname(currentPath)
         }
         
-        throw new Error('No se encontró un proyecto Cypress válido. Asegúrate de estar en un directorio con cypress.config.js/ts o package.json con Cypress como dependencia.')
+    throw new Error('No valid Cypress project found. Make sure you are in a directory with cypress.config.js/ts or a package.json with Cypress as a dependency.')
     }
 
     async loadCypressConfig(workspaceRoot) {
@@ -174,7 +177,8 @@ ${imports}
     }
 }
 
-// Function to generate Cypress Page Object class
+// Function to generate Cypress Page Object class with locators and action methods
+
 function generatePageObjectClass($, url, customFeatureName = null) {
     const featureName = customFeatureName || getFeatureName($, url)
     const className = featureName.charAt(0).toUpperCase() + featureName.slice(1) + 'Page'
@@ -183,8 +187,9 @@ function generatePageObjectClass($, url, customFeatureName = null) {
     const valueGetters = []
     const interactionMethods = []
     const workflowMethods = []
+    // Removed bulk generic methods per user request; we keep individual element action methods only.
     let elementCounter = 1
-    // Track generated element names for test consistency
+    // Track generated element names for test consistency and generic grouping
     const elementMeta = []
 
     // BUTTONS
@@ -352,10 +357,16 @@ function generatePageObjectClass($, url, customFeatureName = null) {
         elementMeta.push({ type: 'textarea', elementName })
         elementCounter++
     })
+    // (Meta map previously used for bulk methods retained only if needed in future; not required now.)
+    const metaMap = elementMeta.reduce((acc, m) => { acc[m.elementName] = m.type; return acc }, {})
     // Generate workflow methods based on detected elements
     const hasLoginForm = $('form').length > 0 && ($('input[type="password"]').length > 0 || $('input[name*="password"]').length > 0)
     const hasSearchForm = $('input[type="search"]').length > 0 || $('input[placeholder*="search"]').length > 0
     const hasSubmitButton = $('button[type="submit"]').length > 0 || $('input[type="submit"]').length > 0
+    const hasRegistrationForm = $('form').filter((_, f) => {
+        const txt = $(f).text().toLowerCase()
+        return txt.includes('register') || txt.includes('signup') || txt.includes('create account') || txt.includes('sign up')
+    }).length > 0
     
     if (hasLoginForm) {
         workflowMethods.push(`
@@ -387,6 +398,22 @@ function generatePageObjectClass($, url, customFeatureName = null) {
     }`)
     }
     
+    if (hasRegistrationForm) {
+        workflowMethods.push(`
+    // Registration workflow
+    register(user, email, password) {
+        const userInput = this.getInputUsername ? this.getInputUsername() : (this.getInputUser ? this.getInputUser() : (this.getInputName ? this.getInputName() : this.getInputEmail ? this.getInputEmail() : null))
+        const emailInput = this.getInputEmail ? this.getInputEmail() : null
+        const passwordInput = this.getInputPassword ? this.getInputPassword() : (this.getInputPass ? this.getInputPass() : null)
+        const submitButton = this.getButtonRegister ? this.getButtonRegister() : (this.getButtonSignup ? this.getButtonSignup() : (this.getButtonSubmit ? this.getButtonSubmit() : null))
+        if (userInput) userInput.type(user)
+        if (emailInput && email) emailInput.type(email)
+        if (passwordInput) passwordInput.type(password)
+        if (submitButton) submitButton.click()
+        return this
+    }`)
+    }
+
     // Add common workflow methods
     workflowMethods.push(`
     // Navigation workflow
@@ -416,7 +443,7 @@ function generatePageObjectClass($, url, customFeatureName = null) {
     }`)
     
     return {
-        classCode: `export class ${className} {\n  // Private elements\n  #elements = {\n${elements.join(',\n')}\n  }\n\n  // Public getters\n${getters.join('\n')}\n\n  // Value/State getters\n${valueGetters.join('\n')}\n\n  // Interaction methods\n${interactionMethods.join('\n')}\n\n  // Workflow methods\n${workflowMethods.join('\n')}\n}\n`,
+        classCode: `export class ${className} {\n  // Private elements\n  #elements = {\n${elements.join(',\n')}\n  }\n\n  // Element meta (currently not used for bulk actions)\n  #meta = ${JSON.stringify(metaMap, null, 2)}\n\n  // Public getters\n${getters.join('\n')}\n\n  // Value/State getters\n${valueGetters.join('\n')}\n\n  // Interaction methods (per-element actions)\n${interactionMethods.join('\n')}\n\n  // Workflow methods\n${workflowMethods.join('\n')}\n}\n`,
         className,
         featureName,
         elementMeta
@@ -484,145 +511,6 @@ function getFeatureName($, url) {
 function sanitizeFeatureName(name) {
     return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
 }
-
-// NEW TOOL: Create Cypress files directly in the project
-server.tool(
-    "createCypressFiles",
-    "Crear archivos Page Object y Tests directamente en el proyecto Cypress",
-    {
-        url: z.string().describe("URL de la página web"),
-        workspacePath: z.string().optional().describe("Ruta del workspace (opcional, se detecta automáticamente)"),
-        pageObjectName: z.string().optional().describe("Nombre personalizado para el page object (opcional)")
-    },
-    async ({ url, workspacePath, pageObjectName }) => {
-        const fileManager = new CypressFileManager()
-        
-        try {
-            // Detect workspace
-            const workspaceRoot = await fileManager.detectWorkspace(workspacePath)
-            
-            // Ensure directory structure exists
-            await fileManager.ensureDirectoryStructure(workspaceRoot)
-            
-            // Launch browser to extract page content
-            const browser = await puppeteer.launch({ 
-                headless: true,
-                args: ['--no-sandbox', '--disable-setuid-sandbox']
-            })
-            
-            const page = await browser.newPage()
-            await page.goto(url, { waitUntil: 'networkidle2' })
-            const html = await page.content()
-            await browser.close()
-            
-            // Parse HTML with Cheerio
-            const $ = cheerio.load(html)
-            
-            // Generate code
-            const pageObjectMeta = generatePageObjectClass($, url, pageObjectName)
-            const cypressTests = generateCypressTests($, pageObjectMeta, url)
-            
-            // Create files
-            const pageObjectPath = await fileManager.createPageObject(workspaceRoot, url, pageObjectMeta)
-            const testFilePath = await fileManager.createTestFile(workspaceRoot, url, cypressTests, pageObjectMeta.featureName)
-            const indexPath = await fileManager.createIndexFile(workspaceRoot)
-            
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: `✅ Archivos creados exitosamente:\n\n📄 Page Object: ${pageObjectPath}\n🧪 Test File: ${testFilePath}\n📋 Index File: ${indexPath}\n\nWorkspace detectado: ${workspaceRoot}\n\nAhora puedes importar el page object en tus tests usando:\nimport { ${pageObjectMeta.className} } from '../pages/${pageObjectMeta.featureName}'`
-                    }
-                ]
-            }
-        } catch (error) {
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: `❌ Error al crear archivos de Cypress: ${error instanceof Error ? error.message : 'Error desconocido'}\n\nAsegúrate de estar en un directorio con un proyecto Cypress válido.`
-                    }
-                ]
-            }
-        }
-    }
-)
-
-server.tool(
-    "generateLocator",
-    "Generar Page Object y Tests de Cypress",
-    { url: z.string().describe("URL de la página web") },
-    async ({ url }) => {
-        try {
-            // Launch browser
-            const browser = await puppeteer.launch({ 
-                headless: true,
-                args: ['--no-sandbox', '--disable-setuid-sandbox']
-            })
-            
-            const page = await browser.newPage()
-            
-            // Navigate to URL
-            await page.goto(url, { waitUntil: 'networkidle2' })
-            
-            // Get the HTML content
-            const html = await page.content()
-            
-            // Close browser
-            await browser.close()
-            
-            // Parse HTML with Cheerio
-            const $ = cheerio.load(html)
-            
-            // Generate Page Object class
-            const pageObjectMeta = generatePageObjectClass($, url)
-            const className = generateClassName(url)
-            
-            // Generate Cypress tests
-            const cypressTests = generateCypressTests($, pageObjectMeta, url)
-            
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: `// ===== PAGE OBJECT CLASS =====\n// Save this as: ${className}.ts\n\n${pageObjectMeta.classCode}\n\n// ===== CYPRESS TESTS =====\n// Save this as: ${className}.cy.ts\n\n${cypressTests}`
-                    }
-                ]
-            }
-        } catch (error) {
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: `Error al generar Page Object y Tests: ${error instanceof Error ? error.message : 'Error desconocido'}`
-                    }
-                ]
-            }
-        }
-    }
-)
-
-// Create transport with proper error handling
-let transport
-try {
-    transport = new StdioServerTransport()
-} catch (error) {
-    console.error('Failed to create StdioServerTransport:', error)
-    // Fallback transport
-    transport = {
-        onclose: undefined,
-        onerror: undefined,
-        onmessage: undefined,
-        start: async () => {},
-        close: async () => {},
-        send: async (message) => {}
-    }
-}
-
-// Wrap in async function to avoid top-level await
-;(async () => {
-    await server.connect(transport)
-})()
 
 // Function to generate Cypress test cases
 function generateCypressTests($, pageObjectMeta, url) {
@@ -734,3 +622,94 @@ function generateCypressTests($, pageObjectMeta, url) {
     // --- Compose the test file ---
     return `import { ${className} } from '../pages/${featureName}'\n\ndescribe('${className} Tests', () => {\n    let page\n    beforeEach(() => {\n        cy.visit('${url}')\n        page = new ${className}()\n    })\n    describe('Element Interactions', () => {\n${elementTests.join('\n')}\n    })\n    describe('Form Submission', () => {\n${formTests.join('\n')}\n    })\n${workflowTests.join('\n')}\n    // Add more negative/error/edge case tests as needed\n})`
 } 
+
+// Copilot generated code ends here
+
+// Tools (updated to registerTool API replacing deprecated server.tool style)
+server.registerTool(
+    'createCypressFiles',
+    {
+        title: 'Create Cypress Files',
+        description: 'Create Page Object and Test files directly in the Cypress project',
+        inputSchema: {
+            url: z.string().describe('URL of the web page'),
+            workspacePath: z.string().optional().describe('Workspace path (optional, it is detected automatically if not provided)'),
+            pageObjectName: z.string().optional().describe('Custom name for the page object (optional)')
+        }
+    },
+    async ({ url, workspacePath, pageObjectName }) => {
+        const fileManager = new CypressFileManager()
+        try {
+            const workspaceRoot = await fileManager.detectWorkspace(workspacePath)
+            await fileManager.ensureDirectoryStructure(workspaceRoot)
+            const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] })
+            const page = await browser.newPage()
+            await page.goto(url, { waitUntil: 'networkidle2' })
+            const html = await page.content()
+            await browser.close()
+            const $ = cheerio.load(html)
+            const pageObjectMeta = generatePageObjectClass($, url, pageObjectName)
+            const cypressTests = generateCypressTests($, pageObjectMeta, url)
+            const pageObjectPath = await fileManager.createPageObject(workspaceRoot, url, pageObjectMeta)
+            const testFilePath = await fileManager.createTestFile(workspaceRoot, url, cypressTests, pageObjectMeta.featureName)
+            const indexPath = await fileManager.createIndexFile(workspaceRoot)
+            return {
+                content: [
+                    { type: 'text', text: `✅ Files created successfully:\n\n📄 Page Object: ${pageObjectPath}\n🧪 Test File: ${testFilePath}\n📋 Index File: ${indexPath}\n\nWorkspace detected: ${workspaceRoot}\n\nNow you can import the page object in your tests using:\nimport { ${pageObjectMeta.className} } from '../pages/${pageObjectMeta.featureName}'` }
+                ]
+            }
+        } catch (error) {
+            return { content: [ { type: 'text', text: `❌ Error creating Cypress files: ${error instanceof Error ? error.message : 'Unknown error'}\n\nMake sure you are in a directory with a valid Cypress project.` } ] }
+        }
+    }
+)
+
+server.registerTool(
+    'generateLocator',
+    {
+        title: 'Generate Locator & Tests',
+        description: 'Generate Cypress Page Object and Tests',
+        inputSchema: { url: z.string().describe('Web page URL') }
+    },
+    async ({ url }) => {
+        try {
+            const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] })
+            const page = await browser.newPage()
+            await page.goto(url, { waitUntil: 'networkidle2' })
+            const html = await page.content()
+            await browser.close()
+            const $ = cheerio.load(html)
+            const pageObjectMeta = generatePageObjectClass($, url)
+            const className = generateClassName(url)
+            const cypressTests = generateCypressTests($, pageObjectMeta, url)
+            return { content: [ { type: 'text', text: `// ===== PAGE OBJECT CLASS =====\n// Save this as: ${className}.ts\n\n${pageObjectMeta.classCode}\n\n// ===== CYPRESS TESTS =====\n// Save this as: ${className}.cy.ts\n\n${cypressTests}` } ] }
+        } catch (error) {
+            return { content: [ { type: 'text', text: `Error generating Page Object and Tests: ${error instanceof Error ? error.message : 'Unknown error'}` } ] }
+        }
+    }
+)
+
+
+
+// Create transport with proper error handling
+let transport
+try {
+    transport = new StdioServerTransport()
+} catch (error) {
+    console.error('Failed to create StdioServerTransport:', error)
+    // Fallback transport
+    transport = {
+        onclose: undefined,
+        onerror: undefined,
+        onmessage: undefined,
+        start: async () => {},
+        close: async () => {},
+        send: async (message) => {}
+    }
+}
+
+// Wrap in async function to avoid top-level await
+(async () => {
+    await server.connect(transport)
+})()
+
