@@ -11,7 +11,7 @@ import path from 'path'
 // Create the MCP server instance
 const server = new McpServer({
     name: "Cypress Generator MCP",
-    version: "1.0.0"
+    version: "1.0.15"
 })
 
 // Here starts code generated using Copilot:
@@ -469,33 +469,6 @@ server.registerTool(
         }
     }
 )
-
-// server.registerTool(
-//     'generateLocator',
-//     {
-//         title: 'Generate Locator & Tests',
-//         description: 'Generate Cypress Page Object and Tests',
-//         inputSchema: { url: z.string().describe('Web page URL') }
-//     },
-//     async ({ url }) => {
-//         try {
-//             const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] })
-//             const page = await browser.newPage()
-//             await page.goto(url, { waitUntil: 'networkidle2' })
-//             const html = await page.content()
-//             await browser.close()
-//             const $ = cheerio.load(html)
-//             const pageObjectMeta = generatePageObjectClass($, url)
-//             const className = generateClassName(url)
-//             // const cypressTests = generateCypressTests($, pageObjectMeta, url)
-//             return { content: [ { type: 'text', text: `// ===== PAGE OBJECT CLASS =====\n// Save this as: ${className}.ts\n\n${pageObjectMeta.classCode}\n\n// ===== CYPRESS TESTS =====\n// Save this as: ${className}.cy.ts\n\n${cypressTests}` } ] }
-//         } catch (error) {
-//             return { content: [ { type: 'text', text: `Error generating Page Object and Tests: ${error instanceof Error ? error.message : 'Unknown error'}` } ] }
-//         }
-//     }
-// )
-
-
 
 // Create transport with proper error handling
 let transport
