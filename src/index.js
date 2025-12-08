@@ -186,7 +186,7 @@ function generatePageObjectClass($, url, customFeatureName = null) {
     const getters = []
     const valueGetters = []
     const interactionMethods = []
-    const workflowMethods = []
+    // Removed workflow method generation; only locators, getters, and per-element actions will be included.
     // Removed bulk generic methods per user request; we keep individual element action methods only.
     let elementCounter = 1
     // Track generated element names for test consistency and generic grouping
@@ -357,93 +357,10 @@ function generatePageObjectClass($, url, customFeatureName = null) {
         elementMeta.push({ type: 'textarea', elementName })
         elementCounter++
     })
-    // (Meta map previously used for bulk methods retained only if needed in future; not required now.)
+    // Only metaMap, elements, getters, valueGetters, and interactionMethods are used for the class now.
     const metaMap = elementMeta.reduce((acc, m) => { acc[m.elementName] = m.type; return acc }, {})
-    // Generate workflow methods based on detected elements
-    const hasLoginForm = $('form').length > 0 && ($('input[type="password"]').length > 0 || $('input[name*="password"]').length > 0)
-    const hasSearchForm = $('input[type="search"]').length > 0 || $('input[placeholder*="search"]').length > 0
-    const hasSubmitButton = $('button[type="submit"]').length > 0 || $('input[type="submit"]').length > 0
-    const hasRegistrationForm = $('form').filter((_, f) => {
-        const txt = $(f).text().toLowerCase()
-        return txt.includes('register') || txt.includes('signup') || txt.includes('create account') || txt.includes('sign up')
-    }).length > 0
-    
-    if (hasLoginForm) {
-        workflowMethods.push(`
-    // Login workflow
-    login(username, password) {
-        const usernameInput = this.getInputUsername ? this.getInputUsername() : this.getInputEmail()
-        const passwordInput = this.getInputPassword()
-        const submitButton = this.getButtonSubmit ? this.getButtonSubmit() : this.getButtonLogin()
-        
-        if (usernameInput) usernameInput.type(username)
-        if (passwordInput) passwordInput.type(password)
-        if (submitButton) submitButton.click()
-        
-        return this
-    }`)
-    }
-    
-    if (hasSearchForm) {
-        workflowMethods.push(`
-    // Search workflow
-    search(query) {
-        const searchInput = this.getInputSearch ? this.getInputSearch() : this.getInputQuery()
-        const searchButton = this.getButtonSearch ? this.getButtonSearch() : this.getButtonSubmit()
-        
-        if (searchInput) searchInput.type(query)
-        if (searchButton) searchButton.click()
-        
-        return this
-    }`)
-    }
-    
-    if (hasRegistrationForm) {
-        workflowMethods.push(`
-    // Registration workflow
-    register(user, email, password) {
-        const userInput = this.getInputUsername ? this.getInputUsername() : (this.getInputUser ? this.getInputUser() : (this.getInputName ? this.getInputName() : this.getInputEmail ? this.getInputEmail() : null))
-        const emailInput = this.getInputEmail ? this.getInputEmail() : null
-        const passwordInput = this.getInputPassword ? this.getInputPassword() : (this.getInputPass ? this.getInputPass() : null)
-        const submitButton = this.getButtonRegister ? this.getButtonRegister() : (this.getButtonSignup ? this.getButtonSignup() : (this.getButtonSubmit ? this.getButtonSubmit() : null))
-        if (userInput) userInput.type(user)
-        if (emailInput && email) emailInput.type(email)
-        if (passwordInput) passwordInput.type(password)
-        if (submitButton) submitButton.click()
-        return this
-    }`)
-    }
-
-    // Add common workflow methods
-    workflowMethods.push(`
-    // Navigation workflow
-    navigateToHome() {
-        const homeLink = this.getLinkHome ? this.getLinkHome() : this.getLinkLogo()
-        if (homeLink) homeLink.click()
-        return this
-    }
-    
-    // Form submission workflow
-    submitForm() {
-        const submitButton = this.getButtonSubmit ? this.getButtonSubmit() : this.getButtonLogin()
-        if (submitButton) submitButton.click()
-        return this
-    }
-    
-    // Wait for page load
-    waitForPageLoad() {
-        cy.wait(1000) // Adjust as needed
-        return this
-    }
-    
-    // Verify page loaded
-    verifyPageLoaded() {
-        cy.url().should('include', '${new URL(url).hostname}')
-        return this
-    }`)
-    
     return {
-        classCode: `export class ${className} {\n  // Private elements\n  #elements = {\n${elements.join(',\n')}\n  }\n\n  // Element meta (currently not used for bulk actions)\n  #meta = ${JSON.stringify(metaMap, null, 2)}\n\n  // Public getters\n${getters.join('\n')}\n\n  // Value/State getters\n${valueGetters.join('\n')}\n\n  // Interaction methods (per-element actions)\n${interactionMethods.join('\n')}\n\n  // Workflow methods\n${workflowMethods.join('\n')}\n}\n`,
+        classCode: `export class ${className} {\n  // Private elements\n  #elements = {\n${elements.join(',\n')}\n  }\n\n  // Element meta (currently not used for bulk actions)\n  #meta = ${JSON.stringify(metaMap, null, 2)}\n\n  // Public getters\n${getters.join('\n')}\n\n  // Value/State getters\n${valueGetters.join('\n')}\n\n  // Interaction methods (per-element actions)\n${interactionMethods.join('\n')}\n}\n`,
         className,
         featureName,
         elementMeta
@@ -512,125 +429,15 @@ function sanitizeFeatureName(name) {
     return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
 }
 
-// Function to generate Cypress test cases
-function generateCypressTests($, pageObjectMeta, url) {
-    const { className, featureName, elementMeta } = pageObjectMeta
-    const elementTests = []
-    const formTests = []
-    const workflowTests = []
-    // Map elementName to type for easy lookup
-    const elementTypeMap = Object.fromEntries(elementMeta.map(e => [e.elementName, e.type]))
-    // Helper to capitalize
-    const cap = s => s.charAt(0).toUpperCase() + s.slice(1)
-
-    // --- Element-level tests ---
-    for (const meta of elementMeta) {
-        const { type, elementName } = meta
-        if (type === 'button' || type === 'link') {
-            elementTests.push(`\n    it('should click ${elementName}', () => {\n        page.click${cap(elementName)}()\n        // Add assertions based on expected behavior\n    })`)
-            elementTests.push(`\n    it('should get text of ${elementName}', () => {\n        page.getText${cap(elementName)}().should('be.a', 'string')\n    })`)
-        } else if (type === 'checkbox' || type === 'radio') {
-            elementTests.push(`\n    it('should check ${elementName}', () => {\n        page.check${cap(elementName)}()\n        page.isChecked${cap(elementName)}()\n    })`)
-            elementTests.push(`\n    it('should uncheck ${elementName}', () => {\n        page.uncheck${cap(elementName)}()\n        // Should be unchecked\n    })`)
-        } else if (type === 'select' || type === 'textarea' || type === 'input') {
-            elementTests.push(`\n    it('should type in ${elementName}', () => {\n        page.type${cap(elementName)}('test input')\n        page.getValue${cap(elementName)}().should('eq', 'test input')\n    })`)
-            elementTests.push(`\n    it('should clear ${elementName}', () => {\n        page.type${cap(elementName)}('test')\n        page.clear${cap(elementName)}()\n        page.getValue${cap(elementName)}().should('eq', '')\n    })`)
-        }
-    }
-
-    // --- Form-level tests ---
-    $('form').each((formIdx, form) => {
-        const $form = $(form)
-        // Find all input/select/textarea in this form
-        const fields = []
-        $form.find('input,select,textarea').each((_, el) => {
-            const $el = $(el)
-            let base = ''
-            if ($el.is('input')) {
-                const type = $el.attr('type') || 'text'
-                if (type === 'checkbox' || type === 'radio') {
-                    base = `input_${$el.attr('id') || $el.attr('name') || $el.attr('data-testid') || type}`
-                } else {
-                    base = `input_${$el.attr('id') || $el.attr('name') || $el.attr('data-testid') || type}`
-                }
-            } else if ($el.is('select')) {
-                base = `select_${$el.attr('id') || $el.attr('name') || $el.attr('data-testid') || 'select'}`
-            } else if ($el.is('textarea')) {
-                base = `textarea_${$el.attr('id') || $el.attr('name') || $el.attr('data-testid') || 'textarea'}`
-            }
-            // Normalize
-            base = base.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
-            // Find the closest match in elementMeta
-            const match = elementMeta.find(e => e.elementName.startsWith(base))
-            if (match) {
-                fields.push({ ...match, elementName: match.elementName })
-            }
-        })
-        // Find submit button in form
-        let submitBtn = null
-        $form.find('button[type="submit"],input[type="submit"]').each((_, el) => {
-            const $el = $(el)
-            let base = ''
-            if ($el.is('button')) {
-                base = `button_${$el.attr('id') || $el.text().trim().replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() || 'submit'}`
-            } else {
-                base = `input_${$el.attr('id') || $el.attr('name') || $el.attr('data-testid') || 'submit'}`
-            }
-            base = base.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
-            const match = elementMeta.find(e => e.elementName.startsWith(base))
-            if (match) submitBtn = match.elementName
-        })
-        // --- Positive test ---
-        if (fields.length && submitBtn) {
-            const validData = fields.map(f => {
-                if (f.type === 'checkbox' || f.type === 'radio') return `page.check${cap(f.elementName)}()`
-                return `page.type${cap(f.elementName)}('valid_${f.elementName}')`
-            }).join('\n        ')
-            formTests.push(`\n    it('should submit form with valid data', () => {\n        ${validData}\n        page.click${cap(submitBtn)}()\n        // Add assertions for successful submission\n    })`)
-        }
-        // --- Negative tests: missing required fields ---
-        fields.forEach(f => {
-            if (f.type === 'checkbox' || f.type === 'radio') {
-                formTests.push(`\n    it('should show error if ${f.elementName} is not checked', () => {\n        // Do not check\n        page.click${cap(submitBtn)}()\n        // Add assertions for error\n    })`)
-            } else {
-                formTests.push(`\n    it('should show error if ${f.elementName} is empty', () => {\n        ${fields.filter(ff => ff.elementName !== f.elementName).map(ff => ff.type === 'checkbox' || ff.type === 'radio' ? `page.check${cap(ff.elementName)}()` : `page.type${cap(ff.elementName)}('valid_${ff.elementName}')`).join('\n        ')}\n        // Leave ${f.elementName} empty\n        page.click${cap(submitBtn)}()\n        // Add assertions for error\n    })`)
-            }
-        })
-        // --- Edge case tests ---
-        fields.forEach(f => {
-            if (f.type !== 'checkbox' && f.type !== 'radio') {
-                formTests.push(`\n    it('should handle long input for ${f.elementName}', () => {\n        page.type${cap(f.elementName)}('a'.repeat(1000))\n        page.click${cap(submitBtn)}()\n        // Add assertions for edge case\n    })`)
-                formTests.push(`\n    it('should handle special characters for ${f.elementName}', () => {\n        page.type${cap(f.elementName)}('!@#$%^&*()_+-=[]{}|;:,.<>?')\n        page.click${cap(submitBtn)}()\n        // Add assertions for edge case\n    })`)
-            }
-        })
-    })
-
-    // --- Workflow tests (login, register, search, etc) ---
-    // If the page object has a login/search/register method, generate workflow tests
-    if (typeof pageObjectMeta.classCode === 'string') {
-        if (/login\s*\(/.test(pageObjectMeta.classCode)) {
-            workflowTests.push(`\n    describe('Login Workflow', () => {\n        it('should login with valid credentials', () => {\n            page.login('validuser', 'validpassword')\n            // Add assertions for successful login\n        })\n        it('should show error with invalid credentials', () => {\n            page.login('invaliduser', 'wrongpassword')\n            // Add assertions for error\n        })\n        it('should show error with empty username', () => {\n            page.login('', 'password')\n            // Add assertions for error\n        })\n        it('should show error with empty password', () => {\n            page.login('username', '')\n            // Add assertions for error\n        })\n    })`)
-        }
-        if (/search\s*\(/.test(pageObjectMeta.classCode)) {
-            workflowTests.push(`\n    describe('Search Workflow', () => {\n        it('should search with valid query', () => {\n            page.search('test query')\n            // Add assertions for search results\n        })\n        it('should handle empty search query', () => {\n            page.search('')\n            // Add assertions for empty search\n        })\n    })`)
-        }
-        if (/register\s*\(/.test(pageObjectMeta.classCode)) {
-            workflowTests.push(`\n    describe('Register Workflow', () => {\n        it('should register with valid data', () => {\n            page.register('user', 'email@example.com', 'password')\n            // Add assertions for successful registration\n        })\n        it('should show error with invalid data', () => {\n            page.register('', '', '')\n            // Add assertions for error\n        })\n    })`)
-        }
-    }
-
-    // --- Compose the test file ---
-    return `import { ${className} } from '../pages/${featureName}'\n\ndescribe('${className} Tests', () => {\n    let page\n    beforeEach(() => {\n        cy.visit('${url}')\n        page = new ${className}()\n    })\n    describe('Element Interactions', () => {\n${elementTests.join('\n')}\n    })\n    describe('Form Submission', () => {\n${formTests.join('\n')}\n    })\n${workflowTests.join('\n')}\n    // Add more negative/error/edge case tests as needed\n})`
-} 
 
 // Copilot generated code ends here
 
 // Tools (updated to registerTool API replacing deprecated server.tool style)
 server.registerTool(
-    'createCypressFiles',
+    'create_Page_Object_file',
     {
-        title: 'Create Cypress Files',
-        description: 'Create Page Object and Test files directly in the Cypress project',
+        title: 'Create Page Object File',
+        description: 'Create Page Object file directly in the Cypress project by analyzing the provided URL',
         inputSchema: {
             url: z.string().describe('URL of the web page'),
             workspacePath: z.string().optional().describe('Workspace path (optional, it is detected automatically if not provided)'),
@@ -649,13 +456,12 @@ server.registerTool(
             await browser.close()
             const $ = cheerio.load(html)
             const pageObjectMeta = generatePageObjectClass($, url, pageObjectName)
-            const cypressTests = generateCypressTests($, pageObjectMeta, url)
+            //const cypressTests = generateCypressTests($, pageObjectMeta, url)
             const pageObjectPath = await fileManager.createPageObject(workspaceRoot, url, pageObjectMeta)
-            const testFilePath = await fileManager.createTestFile(workspaceRoot, url, cypressTests, pageObjectMeta.featureName)
             const indexPath = await fileManager.createIndexFile(workspaceRoot)
             return {
                 content: [
-                    { type: 'text', text: `✅ Files created successfully:\n\n📄 Page Object: ${pageObjectPath}\n🧪 Test File: ${testFilePath}\n📋 Index File: ${indexPath}\n\nWorkspace detected: ${workspaceRoot}\n\nNow you can import the page object in your tests using:\nimport { ${pageObjectMeta.className} } from '../pages/${pageObjectMeta.featureName}'` }
+                    { type: 'text', text: `✅ Files created successfully:\n\n📄 Page Object: ${pageObjectPath}\n📋 Index File: ${indexPath}\n\nWorkspace detected: ${workspaceRoot}\n\nNow you can import the page object in your tests using:\nimport { ${pageObjectMeta.className} } from '../pages/${pageObjectMeta.featureName}'` }
                 ]
             }
         } catch (error) {
@@ -664,30 +470,30 @@ server.registerTool(
     }
 )
 
-server.registerTool(
-    'generateLocator',
-    {
-        title: 'Generate Locator & Tests',
-        description: 'Generate Cypress Page Object and Tests',
-        inputSchema: { url: z.string().describe('Web page URL') }
-    },
-    async ({ url }) => {
-        try {
-            const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] })
-            const page = await browser.newPage()
-            await page.goto(url, { waitUntil: 'networkidle2' })
-            const html = await page.content()
-            await browser.close()
-            const $ = cheerio.load(html)
-            const pageObjectMeta = generatePageObjectClass($, url)
-            const className = generateClassName(url)
-            const cypressTests = generateCypressTests($, pageObjectMeta, url)
-            return { content: [ { type: 'text', text: `// ===== PAGE OBJECT CLASS =====\n// Save this as: ${className}.ts\n\n${pageObjectMeta.classCode}\n\n// ===== CYPRESS TESTS =====\n// Save this as: ${className}.cy.ts\n\n${cypressTests}` } ] }
-        } catch (error) {
-            return { content: [ { type: 'text', text: `Error generating Page Object and Tests: ${error instanceof Error ? error.message : 'Unknown error'}` } ] }
-        }
-    }
-)
+// server.registerTool(
+//     'generateLocator',
+//     {
+//         title: 'Generate Locator & Tests',
+//         description: 'Generate Cypress Page Object and Tests',
+//         inputSchema: { url: z.string().describe('Web page URL') }
+//     },
+//     async ({ url }) => {
+//         try {
+//             const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] })
+//             const page = await browser.newPage()
+//             await page.goto(url, { waitUntil: 'networkidle2' })
+//             const html = await page.content()
+//             await browser.close()
+//             const $ = cheerio.load(html)
+//             const pageObjectMeta = generatePageObjectClass($, url)
+//             const className = generateClassName(url)
+//             // const cypressTests = generateCypressTests($, pageObjectMeta, url)
+//             return { content: [ { type: 'text', text: `// ===== PAGE OBJECT CLASS =====\n// Save this as: ${className}.ts\n\n${pageObjectMeta.classCode}\n\n// ===== CYPRESS TESTS =====\n// Save this as: ${className}.cy.ts\n\n${cypressTests}` } ] }
+//         } catch (error) {
+//             return { content: [ { type: 'text', text: `Error generating Page Object and Tests: ${error instanceof Error ? error.message : 'Unknown error'}` } ] }
+//         }
+//     }
+// )
 
 
 
