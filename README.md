@@ -1,9 +1,9 @@
-# MCP Cypress Page Object & Test Generator
+# MCP Cypress Page Object Generator
 
-This MCP (Model Context Protocol) server automatically generates complete Cypress Page Object classes **AND** comprehensive test suites for any web page.
+This MCP (Model Context Protocol) server automatically generates complete Cypress Page Object classes for any web page provided.
 
 <a href="https://glama.ai/mcp/servers/@jprealini/cypress-mcp">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/@jprealini/cypress-mcp/badge" alt="Cypress Page Object & Test Generator MCP server" />
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@jprealini/cypress-mcp/badge" alt="Cypress Page Object Generator MCP server" />
 </a>
 
 ## Features
@@ -14,16 +14,10 @@ This MCP (Model Context Protocol) server automatically generates complete Cypres
   - Private element locators
   - Public getter methods
   - Interaction methods (click, type, select, etc.)
-  - Workflow methods for common test scenarios
-- **Test Suite Generation**: Creates comprehensive Cypress test files with:
-  - Positive test cases for all elements
-  - Negative test cases for error handling
-  - Workflow tests for common scenarios
-  - Accessibility, performance, and edge case tests
 
 ## Generated Output
 
-The server generates **two files**:
+The server generates:
 
 ### 1. Page Object Class (`{ClassName}.ts`)
 ```typescript
@@ -45,79 +39,8 @@ export class ExampleComLoginPage {
   typeInputUsername(text: string) { return this.#elements.input_username().type(text) }
   clickLinkHome() { return this.#elements.link_home().click() }
 
-  // Workflow methods
-  login(username: string, password: string) {
-    this.typeInputUsername(username)
-    this.typeInputPassword(password)
-    this.clickButtonLogin()
-    return this
-  }
 }
 ```
-
-### 2. Test Suite (`{ClassName}.cy.ts`)
-```typescript
-import { ExampleComLoginPage } from './ExampleComLoginPage'
-
-describe('ExampleComLoginPage Tests', () => {
-  let page: ExampleComLoginPage
-  
-  beforeEach(() => {
-    cy.visit('https://example.com/login')
-    page = new ExampleComLoginPage()
-  })
-  
-  describe('Element Interactions', () => {
-    it('should click button_login', () => {
-      page.clickButtonLogin()
-    })
-    
-    it('should type in input_username', () => {
-      page.typeInputUsername('test input')
-      page.getInputUsername().should('have.value', 'test input')
-    })
-  })
-  
-  describe('Login Workflow', () => {
-    it('should login with valid credentials', () => {
-      page.login('validuser@example.com', 'validpassword')
-      cy.url().should('not.include', '/login')
-    })
-    
-    it('should show error with invalid credentials', () => {
-      page.login('invalid@example.com', 'wrongpassword')
-      cy.contains('Invalid credentials').should('be.visible')
-    })
-  })
-  
-  describe('Error Handling', () => {
-    it('should handle network errors gracefully', () => {
-      cy.intercept('GET', '**', { forceNetworkError: true })
-      cy.visit('https://example.com/login')
-    })
-  })
-})
-```
-
-## Test Categories Generated
-
-### ✅ **Positive Test Cases**
-- **Element Interactions**: Click, type, clear, check/uncheck for all detected elements
-- **Workflow Tests**: Login, search, navigation workflows
-- **Form Validation**: Successful form submissions
-- **Element Visibility**: All elements are visible and accessible
-
-### ❌ **Negative Test Cases**
-- **Error Handling**: Network errors, server errors, slow connections
-- **Validation Errors**: Empty fields, invalid formats, required field validation
-- **Edge Cases**: Large inputs, special characters, unicode text
-- **Accessibility**: ARIA labels, keyboard navigation
-
-### 🔧 **Additional Test Types**
-- **Performance Tests**: Load times, rapid interactions
-- **Responsive Tests**: Different viewport sizes
-- **Accessibility Tests**: ARIA compliance, keyboard navigation
-- **Security Tests**: Input sanitization, XSS prevention
 
 ## Element Types Supported
 
@@ -127,15 +50,6 @@ describe('ExampleComLoginPage Tests', () => {
 - **Select Dropdowns**: Select options with validation
 - **Textareas**: Type and clear with content verification
 - **Forms**: Submit interactions with success/error handling
-
-## Workflow Detection
-
-The server intelligently detects common patterns and generates appropriate tests:
-
-- **Login Forms**: Username/password validation, error handling
-- **Search Forms**: Query validation, results verification
-- **Navigation**: Home links, breadcrumbs, menu items
-- **Form Submissions**: Success states, validation errors
 
 ## Installation
 
@@ -151,14 +65,14 @@ npm install
    ```
 
 2. **Use with an MCP client:**
-   The server exposes a `generateLocator` tool that accepts a URL parameter.
+   The server exposes a `create_Page_Object_file` tool that accepts a URL parameter.
 
    Example tool call:
    ```json
    {
      "method": "tools/call",
      "params": {
-       "name": "generateLocator",
+       "name": "create_Page_Object_file",
        "arguments": {
          "url": "https://example.com/login"
        }
@@ -167,15 +81,12 @@ npm install
    ```
 
 3. **Response format:**
-   The server returns both the Page Object class and test suite:
+   The server returns both the Page Object class:
    ```
    // ===== PAGE OBJECT CLASS =====
    // Save this as: ExampleComLoginPage.ts
-   export class ExampleComLoginPage { ... }
-   
-   // ===== CYPRESS TESTS =====
-   // Save this as: ExampleComLoginPage.cy.ts
-   describe('ExampleComLoginPage Tests', () => { ... }
+   export class ExampleComLoginPage { ... } 
+
    ```
 
 ## Example Usage in Tests
@@ -222,4 +133,4 @@ The server uses Puppeteer with the following settings:
 
 ## Contributing
 
-To add support for new element types, interaction methods, or test patterns, modify the `generatePageObjectClass` and `generateCypressTests` functions in `main.ts`.
+To add support for new element types, interaction methods, or test patterns, modify the `generatePageObjectClass` function in `index.js`.
