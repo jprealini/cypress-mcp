@@ -8,10 +8,15 @@ import * as cheerio from 'cheerio'
 import fs from 'fs/promises'
 import path from 'path'
 
+// ES module-compatible __dirname
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 // Create the MCP server instance
 const server = new McpServer({
     name: "Cypress Generator MCP",
-    version: "1.0.16"
+    version: "1.0.17"
 })
 
 // Here starts code generated using Copilot:

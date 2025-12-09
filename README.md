@@ -162,3 +162,28 @@ You can override the local instructions by passing an external instructions file
 - If no external instructions are provided, the MCP will use its local instructions file by default.
 
 See `.github/instructions/cypress.instructions.md` for the default instruction format and customization options.
+
+## Troubleshooting: Updating to the Latest MCP Version
+
+If you publish a new version of this MCP and consumers do not see the update immediately, follow these steps:
+
+1. **Always increment the version in `package.json` before publishing.**
+2. **Clear the NPM cache and reinstall the package:**
+   ```sh
+   npm cache clean --force
+   npm install @jprealini/cypress-mcp@latest
+   ```
+3. **If using a lockfile (`package-lock.json` or `yarn.lock`), delete it and run:**
+   ```sh
+   npm install
+   ```
+4. **For global installs, update globally:**
+   ```sh
+   npm install -g @jprealini/cypress-mcp@latest
+   ```
+5. **Verify the installed version:**
+   ```sh
+   npm list @jprealini/cypress-mcp
+   ```
+
+These steps ensure consumers always get the latest published MCP version and avoid issues with cached or locked old versions.
