@@ -6,7 +6,7 @@ applyTo: '**'
 # Cypress Page Object Generation Instructions
 
 ## Code quality standards
-- **Locators**: Use data attributes (e.g., `data-cy`) for selecting elements in tests to ensure stability and maintainability if present. If not, use unique CSS selectors or IDs.
+- **Locators**: Use data attributes (e.g., `data-cy`, `data-test`, `data-testid`, etc) for selecting elements in tests to ensure stability and maintainability if present. If not, use unique CSS selectors or IDs.
 - **Page Object structure**: Implement the Page Object Model (POM) for better organization and reusability of page-related actions and selectors.
 - **Private elements**: Use private methods or properties to encapsulate element locators within the page object.
 - **Action methods**: Create public methods for common actions (e.g., `clickLoginButton()`, `enterUsername()`) to encapsulate interactions with page elements.
