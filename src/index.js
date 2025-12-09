@@ -16,7 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Create the MCP server instance
 const server = new McpServer({
     name: "Cypress Generator MCP",
-    version: "1.0.22"
+    version: "1.0.23"
 })
 
 // Here starts code generated using Copilot:
@@ -221,14 +221,15 @@ function getLocatorAndRawName($el, tag, extra = {}) {
         return { locator: `cy.get('${tag}')`, rawName: `${tag}` };
 }
 
-function generatePageObjectClass($, url, customFeatureName = null, instructions = null) {
-    const featureName = customFeatureName || generateClassName($, url)
+function generatePageObjectClass($, url, customFeatureName = null) {
+    const featureName = customFeatureName || getFeatureName($, url)
     const className = featureName.charAt(0).toUpperCase() + featureName.slice(1) + 'Page'
     const elements = []
     const getters = []
     const valueGetters = []
     const interactionMethods = []
     let elementCounter = 1
+    const elementMeta = []
 
     // BUTTONS
         $('button').each((i, element) => {
@@ -266,6 +267,7 @@ function generatePageObjectClass($, url, customFeatureName = null, instructions 
         $('a').each((i, element) => {
             const $el = $(element);
             const { locator, rawName } = getLocatorAndRawName($el, 'a', { index: i });
+            const elementName = toCamelCase(rawName);
             elements.push(`    ${elementName}: () => ${locator}`);
             getters.push(`    get ${elementName}() { return this.#elements.${elementName}() }`);
             interactionMethods.push(`    click${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().click() }`);
@@ -276,6 +278,7 @@ function generatePageObjectClass($, url, customFeatureName = null, instructions 
         $('select').each((i, element) => {
             const $el = $(element);
             const { locator, rawName } = getLocatorAndRawName($el, 'select', { index: i });
+            const elementName = toCamelCase(rawName);
             elements.push(`    ${elementName}: () => ${locator}`);
             getters.push(`    get ${elementName}() { return this.#elements.${elementName}() }`);
             interactionMethods.push(`    select${elementName.charAt(0).toUpperCase() + elementName.slice(1)}(value) { return this.#elements.${elementName}().select(value) }`);
@@ -286,6 +289,7 @@ function generatePageObjectClass($, url, customFeatureName = null, instructions 
         $('textarea').each((i, element) => {
             const $el = $(element);
             const { locator, rawName } = getLocatorAndRawName($el, 'textarea', { index: i });
+            const elementName = toCamelCase(rawName);
             elements.push(`    ${elementName}: () => ${locator}`);
             getters.push(`    get ${elementName}() { return this.#elements.${elementName}() }`);
             interactionMethods.push(`    type${elementName.charAt(0).toUpperCase() + elementName.slice(1)}(text) { return this.#elements.${elementName}().type(text) }`);
@@ -301,7 +305,7 @@ function generatePageObjectClass($, url, customFeatureName = null, instructions 
 }
 
 // Utility: Infer the page object class name from HTML or URL
-function generateClassName($, url) {
+function getFeatureName($, url) {
     // Try form name/id
     let name = $('form').attr('name') || $('form').attr('id')
     if (name) return sanitizeFeatureName(name)
@@ -360,47 +364,21 @@ server.registerTool(
         inputSchema: {
             url: z.string().describe('URL of the web page'),
             workspacePath: z.string().optional().describe('Workspace path (optional, it is detected automatically if not provided)'),
-            pageObjectName: z.string().optional().describe('Custom name for the page object (optional)'),
-            instructions: z.string().optional().describe('Additional instructions for generating the page object')
+            pageObjectName: z.string().optional().describe('Custom name for the page object (optional)')
         }
     },
-    async ({ url, workspacePath, pageObjectName, instructions }) => {
+    async ({ url, workspacePath, pageObjectName }) => {
         const fileManager = new CypressFileManager()
         try {
             const workspaceRoot = await fileManager.detectWorkspace(workspacePath)
             await fileManager.ensureDirectoryStructure(workspaceRoot)
-            // Read local instructions file
-            let localInstructions = ''
-            const localInstructionsPath = path.join(__dirname || process.cwd(), '.github', 'instructions', 'cypress.instructions.md')
-            if (await fileManager.fileExists(localInstructionsPath)) {
-                localInstructions = await fs.readFile(localInstructionsPath, 'utf8')
-            }
-            // If instructions param is a file path, read it
-            let externalInstructions = ''
-            if (instructions && instructions.trim().length > 0) {
-                // If instructions looks like a file path, read it
-                if (instructions.endsWith('.md') || instructions.endsWith('.txt')) {
-                    if (await fileManager.fileExists(instructions)) {
-                        externalInstructions = await fs.readFile(instructions, 'utf8')
-                    } else {
-                        externalInstructions = instructions // fallback: treat as raw string
-                    }
-                } else {
-                    externalInstructions = instructions
-                }
-            }
-            // Override local instructions if external instructions are provided
-            let finalInstructions = localInstructions
-            if (externalInstructions) {
-                finalInstructions = externalInstructions
-            }
             const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] })
             const page = await browser.newPage()
             await page.goto(url, { waitUntil: 'networkidle2' })
             const html = await page.content()
             await browser.close()
             const $ = cheerio.load(html)
-            const pageObjectMeta = generatePageObjectClass($, url, pageObjectName, finalInstructions)
+            const pageObjectMeta = generatePageObjectClass($, url, pageObjectName)
             const pageObjectPath = await fileManager.createPageObject(workspaceRoot, url, pageObjectMeta)
             const indexPath = await fileManager.createIndexFile(workspaceRoot)
             return {
