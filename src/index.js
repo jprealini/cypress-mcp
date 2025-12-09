@@ -16,7 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Create the MCP server instance
 const server = new McpServer({
     name: "Cypress Generator MCP",
-    version: "1.0.20"
+    version: "1.0.21"
 })
 
 // Here starts code generated using Copilot:
@@ -291,7 +291,7 @@ function generatePageObjectClass($, url, customFeatureName = null, instructions 
             elementCounter++;
         });    
     return {
-        classCode: `export class ${className} {\n  // Private elements\n  #elements = {\n${elements.join(',\n')}\n  }\n\n  // Element meta (currently not used for bulk actions)\n  #meta = ${JSON.stringify(metaMap, null, 2)}\n\n  // Public getters\n${getters.join('\n')}\n\n  // Value/State getters\n${valueGetters.join('\n')}\n\n  // Interaction methods (per-element actions)\n${interactionMethods.join('\n')}\n}\n`,
+        classCode: `export class ${className} {\n  // Private elements\n  #elements = {\n${elements.join(',\n')}\n  }\n\n  // Element meta (currently not used for bulk actions)\n\n  // Public getters\n${getters.join('\n')}\n\n  // Value/State getters\n${valueGetters.join('\n')}\n\n  // Interaction methods (per-element actions)\n${interactionMethods.join('\n')}\n}\n`,
         className,
         featureName
     }
