@@ -16,7 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Create the MCP server instance
 const server = new McpServer({
     name: "Cypress Generator MCP",
-    version: "1.0.17"
+    version: "1.0.18"
 })
 
 // Here starts code generated using Copilot:

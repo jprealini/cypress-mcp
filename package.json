@@ -1,6 +1,6 @@
 {
   "name": "@jprealini/cypress-mcp",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "description": "MCP Server to generate page objects files for Cypress based on a given url",
   "main": "./src/index.js",
   "bin": {
