@@ -16,7 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Create the MCP server instance
 const server = new McpServer({
     name: "Cypress Generator MCP",
-    version: "1.0.18"
+    version: "1.0.19"
 })
 
 // Here starts code generated using Copilot:
@@ -184,6 +184,14 @@ ${imports}
 
 // Function to generate Cypress Page Object class with locators and action methods
 
+
+// Utility to convert any string to camelCase
+function toCamelCase(str) {
+  return str
+    .replace(/[-_\s]+(.)?/g, (_, c) => c ? c.toUpperCase() : '')
+    .replace(/^(.)/, (m) => m.toLowerCase());
+}
+
 function generatePageObjectClass($, url, customFeatureName = null, instructions = null) {
     const featureName = customFeatureName || getFeatureName($, url)
     const className = featureName.charAt(0).toUpperCase() + featureName.slice(1) + 'Page'
@@ -191,10 +199,7 @@ function generatePageObjectClass($, url, customFeatureName = null, instructions 
     const getters = []
     const valueGetters = []
     const interactionMethods = []
-    // Removed workflow method generation; only locators, getters, and per-element actions will be included.
-    // Removed bulk generic methods per user request; we keep individual element action methods only.
     let elementCounter = 1
-    // Track generated element names for test consistency and generic grouping
     const elementMeta = []
 
     // BUTTONS
@@ -205,28 +210,27 @@ function generatePageObjectClass($, url, customFeatureName = null, instructions 
         const classNameAttr = $el.attr('class')
         const dataTestId = $el.attr('data-testid')
         let locator = ''
-        let elementName = ''
+        let rawName = ''
         if (dataTestId) {
             locator = `cy.get('[data-testid="${dataTestId}"]')`
-            elementName = `button_${dataTestId.replace(/[^a-zA-Z0-9]/g, '_')}`
+            rawName = `button ${dataTestId}`
         } else if (id) {
             locator = `cy.get('#${id}')`
-            elementName = `button_${id}`
+            rawName = `button ${id}`
         } else if (text) {
             locator = `cy.contains('button', '${text}')`
-            elementName = `button_${text.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`
+            rawName = `button ${text}`
         } else if (classNameAttr) {
             locator = `cy.get('button.${classNameAttr.split(' ')[0]}')`
-            elementName = `button_${classNameAttr.split(' ')[0]}`
+            rawName = `button ${classNameAttr.split(' ')[0]}`
         } else {
             locator = `cy.get('button').eq(${elementCounter - 1})`
-            elementName = `button_${elementCounter}`
+            rawName = `button ${elementCounter}`
         }
+        const elementName = toCamelCase(rawName)
         elements.push(`    ${elementName}: () => ${locator}`)
-        getters.push(`    get ${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}() }`)
         interactionMethods.push(`    click${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().click() }`)
         valueGetters.push(`    getText${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('text') }`)
-        elementMeta.push({ type: 'button', elementName })
         elementCounter++
     })
     // INPUTS
@@ -238,25 +242,26 @@ function generatePageObjectClass($, url, customFeatureName = null, instructions 
         const placeholder = $el.attr('placeholder')
         const dataTestId = $el.attr('data-testid')
         let locator = ''
-        let elementName = ''
+        let rawName = ''
         if (dataTestId) {
             locator = `cy.get('[data-testid="${dataTestId}"]')`
-            elementName = `input_${dataTestId.replace(/[^a-zA-Z0-9]/g, '_')}`
+            rawName = `input ${dataTestId}`
         } else if (id) {
             locator = `cy.get('#${id}')`
-            elementName = `input_${id}`
+            rawName = `input ${id}`
         } else if (name) {
             locator = `cy.get('input[name="${name}"]')`
-            elementName = `input_${name}`
+            rawName = `input ${name}`
         } else if (placeholder) {
             locator = `cy.get('input[placeholder="${placeholder}"]')`
-            elementName = `input_${placeholder.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`
+            rawName = `input ${placeholder}`
         } else {
             locator = `cy.get('input[type="${type}"]').eq(${elementCounter - 1})`
-            elementName = `input_${type}_${elementCounter}`
+            rawName = `input ${type} ${elementCounter}`
         }
+        const elementName = toCamelCase(rawName)
         elements.push(`    ${elementName}: () => ${locator}`)
-        getters.push(`    get ${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}() }`)
+        getters.push(`    get ${elementName}() { return this.#elements.${elementName}() }`)
         if (type === 'checkbox' || type === 'radio') {
             interactionMethods.push(`    check${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().check() }`)
             interactionMethods.push(`    uncheck${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().uncheck() }`)
@@ -277,25 +282,26 @@ function generatePageObjectClass($, url, customFeatureName = null, instructions 
         const id = $el.attr('id')
         const dataTestId = $el.attr('data-testid')
         let locator = ''
-        let elementName = ''
+        let rawName = ''
         if (dataTestId) {
             locator = `cy.get('[data-testid="${dataTestId}"]')`
-            elementName = `link_${dataTestId.replace(/[^a-zA-Z0-9]/g, '_')}`
+            rawName = `link ${dataTestId}`
         } else if (id) {
             locator = `cy.get('#${id}')`
-            elementName = `link_${id}`
+            rawName = `link ${id}`
         } else if (text) {
             locator = `cy.contains('a', '${text}')`
-            elementName = `link_${text.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`
+            rawName = `link ${text}`
         } else if (href) {
             locator = `cy.get('a[href="${href}"]')`
-            elementName = `link_${href.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`
+            rawName = `link ${href}`
         } else {
             locator = `cy.get('a').eq(${elementCounter - 1})`
-            elementName = `link_${elementCounter}`
+            rawName = `link ${elementCounter}`
         }
+        const elementName = toCamelCase(rawName)
         elements.push(`    ${elementName}: () => ${locator}`)
-        getters.push(`    get ${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}() }`)
+        getters.push(`    get ${elementName}() { return this.#elements.${elementName}() }`)
         interactionMethods.push(`    click${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().click() }`)
         valueGetters.push(`    getText${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('text') }`)
         elementMeta.push({ type: 'link', elementName })
@@ -308,22 +314,23 @@ function generatePageObjectClass($, url, customFeatureName = null, instructions 
         const name = $el.attr('name')
         const dataTestId = $el.attr('data-testid')
         let locator = ''
-        let elementName = ''
+        let rawName = ''
         if (dataTestId) {
             locator = `cy.get('[data-testid="${dataTestId}"]')`
-            elementName = `select_${dataTestId.replace(/[^a-zA-Z0-9]/g, '_')}`
+            rawName = `select ${dataTestId}`
         } else if (id) {
             locator = `cy.get('#${id}')`
-            elementName = `select_${id}`
+            rawName = `select ${id}`
         } else if (name) {
             locator = `cy.get('select[name="${name}"]')`
-            elementName = `select_${name}`
+            rawName = `select ${name}`
         } else {
             locator = `cy.get('select').eq(${elementCounter - 1})`
-            elementName = `select_${elementCounter}`
+            rawName = `select ${elementCounter}`
         }
+        const elementName = toCamelCase(rawName)
         elements.push(`    ${elementName}: () => ${locator}`)
-        getters.push(`    get ${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}() }`)
+        getters.push(`    get ${elementName}() { return this.#elements.${elementName}() }`)
         interactionMethods.push(`    select${elementName.charAt(0).toUpperCase() + elementName.slice(1)}(value) { return this.#elements.${elementName}().select(value) }`)
         valueGetters.push(`    getValue${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('val') }`)
         elementMeta.push({ type: 'select', elementName })
@@ -337,32 +344,32 @@ function generatePageObjectClass($, url, customFeatureName = null, instructions 
         const placeholder = $el.attr('placeholder')
         const dataTestId = $el.attr('data-testid')
         let locator = ''
-        let elementName = ''
+        let rawName = ''
         if (dataTestId) {
             locator = `cy.get('[data-testid="${dataTestId}"]')`
-            elementName = `textarea_${dataTestId.replace(/[^a-zA-Z0-9]/g, '_')}`
+            rawName = `textarea ${dataTestId}`
         } else if (id) {
             locator = `cy.get('#${id}')`
-            elementName = `textarea_${id}`
+            rawName = `textarea ${id}`
         } else if (name) {
             locator = `cy.get('textarea[name="${name}"]')`
-            elementName = `textarea_${name}`
+            rawName = `textarea ${name}`
         } else if (placeholder) {
             locator = `cy.get('textarea[placeholder="${placeholder}"]')`
-            elementName = `textarea_${placeholder.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`
+            rawName = `textarea ${placeholder}`
         } else {
             locator = `cy.get('textarea').eq(${elementCounter - 1})`
-            elementName = `textarea_${elementCounter}`
+            rawName = `textarea ${elementCounter}`
         }
+        const elementName = toCamelCase(rawName)
         elements.push(`    ${elementName}: () => ${locator}`)
-        getters.push(`    get ${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}() }`)
+        getters.push(`    get ${elementName}() { return this.#elements.${elementName}() }`)
         interactionMethods.push(`    type${elementName.charAt(0).toUpperCase() + elementName.slice(1)}(text) { return this.#elements.${elementName}().type(text) }`)
         interactionMethods.push(`    clear${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().clear() }`)
         valueGetters.push(`    getValue${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('val') }`)
         elementMeta.push({ type: 'textarea', elementName })
         elementCounter++
     })
-    // Only metaMap, elements, getters, valueGetters, and interactionMethods are used for the class now.
     const metaMap = elementMeta.reduce((acc, m) => { acc[m.elementName] = m.type; return acc }, {})
     return {
         classCode: `export class ${className} {\n  // Private elements\n  #elements = {\n${elements.join(',\n')}\n  }\n\n  // Element meta (currently not used for bulk actions)\n  #meta = ${JSON.stringify(metaMap, null, 2)}\n\n  // Public getters\n${getters.join('\n')}\n\n  // Value/State getters\n${valueGetters.join('\n')}\n\n  // Interaction methods (per-element actions)\n${interactionMethods.join('\n')}\n}\n`,
