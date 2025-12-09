@@ -16,7 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Create the MCP server instance
 const server = new McpServer({
     name: "Cypress Generator MCP",
-    version: "1.0.21"
+    version: "1.0.22"
 })
 
 // Here starts code generated using Copilot:
@@ -252,6 +252,9 @@ function generatePageObjectClass($, url, customFeatureName = null, instructions 
                 interactionMethods.push(`    check${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().check() }`);
                 interactionMethods.push(`    uncheck${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().uncheck() }`);
                 valueGetters.push(`    isChecked${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().should('have.prop', 'checked') }`);
+            } else if (type === 'submit' || type === 'button') {
+                interactionMethods.push(`    click${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().click() }`);
+                valueGetters.push(`    getText${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('text') }`);
             } else {
                 interactionMethods.push(`    type${elementName.charAt(0).toUpperCase() + elementName.slice(1)}(text) { return this.#elements.${elementName}().type(text) }`);
                 interactionMethods.push(`    clear${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().clear() }`);
