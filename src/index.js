@@ -179,7 +179,7 @@ ${imports}
 
 // Function to generate Cypress Page Object class with locators and action methods
 
-function generatePageObjectClass($, url, customFeatureName = null) {
+function generatePageObjectClass($, url, customFeatureName = null, instructions = null) {
     const featureName = customFeatureName || getFeatureName($, url)
     const className = featureName.charAt(0).toUpperCase() + featureName.slice(1) + 'Page'
     const elements = []
@@ -441,22 +441,47 @@ server.registerTool(
         inputSchema: {
             url: z.string().describe('URL of the web page'),
             workspacePath: z.string().optional().describe('Workspace path (optional, it is detected automatically if not provided)'),
-            pageObjectName: z.string().optional().describe('Custom name for the page object (optional)')
+            pageObjectName: z.string().optional().describe('Custom name for the page object (optional)'),
+            instructions: z.string().optional().describe('Additional instructions for generating the page object')
         }
     },
-    async ({ url, workspacePath, pageObjectName }) => {
+    async ({ url, workspacePath, pageObjectName, instructions }) => {
         const fileManager = new CypressFileManager()
         try {
             const workspaceRoot = await fileManager.detectWorkspace(workspacePath)
             await fileManager.ensureDirectoryStructure(workspaceRoot)
+            // Read local instructions file
+            let localInstructions = ''
+            const localInstructionsPath = path.join(__dirname || process.cwd(), '.github', 'instructions', 'cypress.instructions.md')
+            if (await fileManager.fileExists(localInstructionsPath)) {
+                localInstructions = await fs.readFile(localInstructionsPath, 'utf8')
+            }
+            // If instructions param is a file path, read it
+            let externalInstructions = ''
+            if (instructions && instructions.trim().length > 0) {
+                // If instructions looks like a file path, read it
+                if (instructions.endsWith('.md') || instructions.endsWith('.txt')) {
+                    if (await fileManager.fileExists(instructions)) {
+                        externalInstructions = await fs.readFile(instructions, 'utf8')
+                    } else {
+                        externalInstructions = instructions // fallback: treat as raw string
+                    }
+                } else {
+                    externalInstructions = instructions
+                }
+            }
+            // Override local instructions if external instructions are provided
+            let finalInstructions = localInstructions
+            if (externalInstructions) {
+                finalInstructions = externalInstructions
+            }
             const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] })
             const page = await browser.newPage()
             await page.goto(url, { waitUntil: 'networkidle2' })
             const html = await page.content()
             await browser.close()
             const $ = cheerio.load(html)
-            const pageObjectMeta = generatePageObjectClass($, url, pageObjectName)
-            //const cypressTests = generateCypressTests($, pageObjectMeta, url)
+            const pageObjectMeta = generatePageObjectClass($, url, pageObjectName, finalInstructions)
             const pageObjectPath = await fileManager.createPageObject(workspaceRoot, url, pageObjectMeta)
             const indexPath = await fileManager.createIndexFile(workspaceRoot)
             return {
