@@ -11,7 +11,7 @@ import path from 'path'
 // Create the MCP server instance
 const server = new McpServer({
     name: "Cypress Generator MCP",
-    version: "1.0.15"
+    version: "1.0.16"
 })
 
 // Here starts code generated using Copilot:

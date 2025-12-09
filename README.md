@@ -134,3 +134,31 @@ The server uses Puppeteer with the following settings:
 ## Contributing
 
 To add support for new element types, interaction methods, or test patterns, modify the `generatePageObjectClass` function in `index.js`.
+
+## Instructions File (Customization)
+
+This MCP uses a local instructions file located at `.github/instructions/cypress.instructions.md` to define the standards and patterns for generating Cypress Page Object files. These instructions cover code quality, file structure, and best practices for Page Object Model implementation.
+
+### Overriding Local Instructions
+
+You can override the local instructions by passing an external instructions file (such as a Markdown or text file) using the `instructions` parameter when calling the MCP's `create_Page_Object_file` tool. If external instructions are provided, they will be used instead of the local instructions file.
+
+#### Example Tool Call with External Instructions
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "create_Page_Object_file",
+    "arguments": {
+      "url": "https://example.com/login",
+      "instructions": "/path/to/your/custom.instructions.md"
+    }
+  }
+}
+```
+
+- If the `instructions` parameter is a file path, the MCP will read and use that file's contents.
+- If the parameter is a string, it will use the string as instructions directly.
+- If no external instructions are provided, the MCP will use its local instructions file by default.
+
+See `.github/instructions/cypress.instructions.md` for the default instruction format and customization options.
