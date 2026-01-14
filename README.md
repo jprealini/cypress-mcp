@@ -6,6 +6,10 @@ This MCP server automatically generates Cypress Page Object classes for any web 
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@jprealini/cypress-mcp/badge" alt="Cypress Page Object Generator MCP server" />
 </a>
 
+## NPM package:
+
+[![npm version](https://badge.fury.io/js/@jprealini%2Fcypress-mcp.svg)](https://www.npmjs.com/package/@jprealini/cypress-mcp)
+
 ## Features
 
 - **Web Scraping**: Uses Puppeteer to fetch and render web pages
