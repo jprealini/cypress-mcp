@@ -1,6 +1,6 @@
 # MCP Cypress Page Object Generator
 
-This MCP (Model Context Protocol) server automatically generates complete Cypress Page Object classes for any web page provided.
+This MCP server automatically generates Cypress Page Object classes for any web page provided.
 
 <a href="https://glama.ai/mcp/servers/@jprealini/cypress-mcp">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@jprealini/cypress-mcp/badge" alt="Cypress Page Object Generator MCP server" />
