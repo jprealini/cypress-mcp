@@ -11,7 +11,7 @@ import path from 'path'
 // Create the MCP server instance
 const server = new McpServer({
     name: "Cypress Generator MCP",
-    version: "1.0.0"
+    version: "1.0.25"
 })
 
 // Here starts code generated using Copilot:
@@ -495,8 +495,8 @@ server.registerTool(
         const fileManager = new CypressFileManager()
         let pageObjectMeta = null
         try {            
-            //const workspaceRoot = await fileManager.detectWorkspace(workspacePath)
-            //await fileManager.ensureDirectoryStructure(workspaceRoot)
+            const workspaceRoot = await fileManager.detectWorkspace(workspacePath)
+            await fileManager.ensureDirectoryStructure(workspaceRoot)
             const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] })
             const page = await browser.newPage()
             await page.goto(url, { waitUntil: 'networkidle2' })
