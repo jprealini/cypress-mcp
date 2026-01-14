@@ -8,15 +8,10 @@ import * as cheerio from 'cheerio'
 import fs from 'fs/promises'
 import path from 'path'
 
-// ES module-compatible __dirname
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
 // Create the MCP server instance
 const server = new McpServer({
     name: "Cypress Generator MCP",
-    version: "1.0.23"
+    version: "1.0.0"
 })
 
 // Here starts code generated using Copilot:
@@ -140,86 +135,14 @@ class CypressFileManager {
         
         await fs.writeFile(filePath, classCode, 'utf8')
         return filePath
-    }
-
-    async createTestFile(workspaceRoot, url, testCode, featureName) {
-        const fileName = `${featureName}.cy.js`
-        const filePath = path.join(workspaceRoot, 'cypress', 'e2e', 'tests', fileName)
-        
-        if (await this.fileExists(filePath)) {
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-            const backupPath = path.join(workspaceRoot, 'cypress', 'e2e', 'tests', `${featureName}.backup.${timestamp}.cy.js`)
-            await fs.copyFile(filePath, backupPath)
-        }
-        
-        await fs.writeFile(filePath, testCode, 'utf8')
-        return filePath
-    }
+    }    
 
     sanitizeFileName(name) {
         return name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
     }
-
-    async createIndexFile(workspaceRoot) {
-        const indexPath = path.join(workspaceRoot, 'cypress', 'pages', 'index.js')
-        
-        // Get all page object files
-        const pagesDir = path.join(workspaceRoot, 'cypress', 'pages')
-        const files = await fs.readdir(pagesDir)
-        const pageFiles = files.filter(file => file.endsWith('.js') && file !== 'index.js')
-        
-        const imports = pageFiles.map(file => {
-            const className = file.replace('.js', '')
-            return `export { ${className} } from './${file.replace('.js', '')}'`
-        }).join('\n')
-        
-        const indexContent = `// Auto-generated index file for page objects
-${imports}
-`
-        
-        await fs.writeFile(indexPath, indexContent, 'utf8')
-        return indexPath
-    }
 }
 
 // Function to generate Cypress Page Object class with locators and action methods
-
-
-// Utility to convert any string to camelCase
-function toCamelCase(str) {
-  return str
-    .replace(/[-_\s]+(.)?/g, (_, c) => c ? c.toUpperCase() : '')
-    .replace(/^(.)/, (m) => m.toLowerCase());
-}
-
-// Generic locator and rawName generator for any element type
-function getLocatorAndRawName($el, tag, extra = {}) {
-        const dataCy = $el.attr('data-cy');
-        const dataTest = $el.attr('data-test');
-        const dataTestId = $el.attr('data-testid');
-        const id = $el.attr('id');
-        const name = $el.attr('name');
-        const placeholder = $el.attr('placeholder');
-        const classNameAttr = $el.attr('class');
-        const text = $el.text ? $el.text().trim() : '';
-        const href = $el.attr('href');
-        const type = extra.type || $el.attr('type');
-        const index = typeof extra.index === 'number' ? extra.index : undefined;
-
-        if (dataCy) return { locator: `cy.get('[data-cy="${dataCy}"]')`, rawName: `${tag} ${dataCy}` };
-        if (dataTest) return { locator: `cy.get('[data-test="${dataTest}"]')`, rawName: `${tag} ${dataTest}` };
-        if (dataTestId) return { locator: `cy.get('[data-testid="${dataTestId}"]')`, rawName: `${tag} ${dataTestId}` };
-        if (id) return { locator: `cy.get('#${id}')`, rawName: `${tag} ${id}` };
-        if (name && (tag === 'input' || tag === 'select' || tag === 'textarea')) return { locator: `cy.get('${tag}[name="${name}"]')`, rawName: `${tag} ${name}` };
-        if (placeholder && (tag === 'input' || tag === 'textarea')) return { locator: `cy.get('${tag}[placeholder="${placeholder}"]')`, rawName: `${tag} ${placeholder}` };
-        if (text && tag === 'button') return { locator: `cy.contains('button', '${text}')`, rawName: `button ${text}` };
-        if (text && tag === 'a') return { locator: `cy.contains('a', '${text}')`, rawName: `link ${text}` };
-        if (href && tag === 'a') return { locator: `cy.get('a[href="${href}"]')`, rawName: `link ${href}` };
-        if (classNameAttr && tag === 'button') return { locator: `cy.get('button.${classNameAttr.split(' ')[0]}')`, rawName: `button ${classNameAttr.split(' ')[0]}` };
-        if (type && tag === 'input' && typeof index === 'number') return { locator: `cy.get('input[type="${type}"]').eq(${index})`, rawName: `input ${type} ${index + 1}` };
-        if (typeof index === 'number') return { locator: `cy.get('${tag}').eq(${index})`, rawName: `${tag} ${index + 1}` };
-        return { locator: `cy.get('${tag}')`, rawName: `${tag}` };
-}
 
 function generatePageObjectClass($, url, customFeatureName = null) {
     const featureName = customFeatureName || getFeatureName($, url)
@@ -228,83 +151,285 @@ function generatePageObjectClass($, url, customFeatureName = null) {
     const getters = []
     const valueGetters = []
     const interactionMethods = []
+    const workflowMethods = []
+    // Removed bulk generic methods per user request; we keep individual element action methods only.
     let elementCounter = 1
+    // Track generated element names for test consistency and generic grouping
     const elementMeta = []
 
     // BUTTONS
-        $('button').each((i, element) => {
-            const $el = $(element);
-            const { locator, rawName } = getLocatorAndRawName($el, 'button', { index: i });
-            const elementName = toCamelCase(rawName);
-            elements.push(`    ${elementName}: () => ${locator}`);
-            interactionMethods.push(`    click${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().click() }`);
-            valueGetters.push(`    getText${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('text') }`);
-            elementCounter++;
-        });
+    $('button').each((_, element) => {
+        const $el = $(element)
+        const text = $el.text().trim()
+        const id = $el.attr('id')
+        const classNameAttr = $el.attr('class')
+        const dataTestId = $el.attr('data-testid')
+        let locator = ''
+        let elementName = ''
+        if (dataTestId) {
+            locator = `cy.get('[data-testid="${dataTestId}"]')`
+            elementName = `button_${dataTestId.replace(/[^a-zA-Z0-9]/g, '_')}`
+        } else if (id) {
+            locator = `cy.get('#${id}')`
+            elementName = `button_${id.replace(/[^a-zA-Z0-9]/g, '_')}`
+        } else if (text) {
+            locator = `cy.contains('button', '${text}')`
+            elementName = `button_${text.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`
+        } else if (classNameAttr) {
+            locator = `cy.get('button.${classNameAttr.split(' ')[0]}')`
+            elementName = `button_${classNameAttr.split(' ')[0]}`
+        } else {
+            locator = `cy.get('button').eq(${elementCounter - 1})`
+            elementName = `button_${elementCounter.replace(/[^a-zA-Z0-9]/g, '_')}`
+        }
+        elements.push(`    ${elementName}: () => ${locator}`)
+        getters.push(`    get ${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}() }`)
+        interactionMethods.push(`    click${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().click() }`)
+        valueGetters.push(`    getText${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('text') }`)
+        elementMeta.push({ type: 'button', elementName })
+        elementCounter++
+    })
     // INPUTS
-        $('input').each((i, element) => {
-            const $el = $(element);
-            const type = $el.attr('type') || 'text';
-            const { locator, rawName } = getLocatorAndRawName($el, 'input', { type, index: i });
-            const elementName = toCamelCase(rawName);
-            elements.push(`    ${elementName}: () => ${locator}`);
-            getters.push(`    get ${elementName}() { return this.#elements.${elementName}() }`);
-            if (type === 'checkbox' || type === 'radio') {
-                interactionMethods.push(`    check${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().check() }`);
-                interactionMethods.push(`    uncheck${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().uncheck() }`);
-                valueGetters.push(`    isChecked${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().should('have.prop', 'checked') }`);
-            } else if (type === 'submit' || type === 'button') {
-                interactionMethods.push(`    click${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().click() }`);
-                valueGetters.push(`    getText${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('text') }`);
-            } else {
-                interactionMethods.push(`    type${elementName.charAt(0).toUpperCase() + elementName.slice(1)}(text) { return this.#elements.${elementName}().type(text) }`);
-                interactionMethods.push(`    clear${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().clear() }`);
-                valueGetters.push(`    getValue${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('val') }`);
-            }
-            elementCounter++;
-        });
+    $('input').each((_, element) => {
+        const $el = $(element)
+        const type = $el.attr('type') || 'text'
+        const id = $el.attr('id')
+        const name = $el.attr('name')
+        const placeholder = $el.attr('placeholder')
+        const dataTestId = $el.attr('data-testid')
+        let locator = ''
+        let elementName = ''
+        if (dataTestId) {
+            locator = `cy.get('[data-testid="${dataTestId}"]')`
+            elementName = `input_${dataTestId.replace(/[^a-zA-Z0-9]/g, '_')}`
+        } else if (id) {
+            locator = `cy.get('#${id}')`
+            elementName = `input_${id.replace(/[^a-zA-Z0-9]/g, '_')}`
+        } else if (name) {
+            locator = `cy.get('input[name="${name}"]')`
+            elementName = `input_${name.replace(/[^a-zA-Z0-9]/g, '_')}`
+        } else if (placeholder) {
+            locator = `cy.get('input[placeholder="${placeholder}"]')`
+            elementName = `input_${placeholder.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`
+        } else {
+            locator = `cy.get('input[type="${type}"]').eq(${elementCounter - 1})`
+            elementName = `input_${type}_${elementCounter.replace(/[^a-zA-Z0-9]/g, '_')}`
+        }
+        elements.push(`    ${elementName}: () => ${locator}`)
+        getters.push(`    get ${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}() }`)
+        if (type === 'checkbox' || type === 'radio') {
+            interactionMethods.push(`    check${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().check() }`)
+            interactionMethods.push(`    uncheck${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().uncheck() }`)
+            valueGetters.push(`    isChecked${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().should('have.prop', 'checked') }`)
+        } else {
+            interactionMethods.push(`    type${elementName.charAt(0).toUpperCase() + elementName.slice(1)}(text) { return this.#elements.${elementName}().type(text) }`)
+            interactionMethods.push(`    clear${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().clear() }`)
+            valueGetters.push(`    getValue${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('val') }`)
+        }
+        elementMeta.push({ type, elementName })
+        elementCounter++
+    })
     // LINKS
-        $('a').each((i, element) => {
-            const $el = $(element);
-            const { locator, rawName } = getLocatorAndRawName($el, 'a', { index: i });
-            const elementName = toCamelCase(rawName);
-            elements.push(`    ${elementName}: () => ${locator}`);
-            getters.push(`    get ${elementName}() { return this.#elements.${elementName}() }`);
-            interactionMethods.push(`    click${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().click() }`);
-            valueGetters.push(`    getText${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('text') }`);
-            elementCounter++;
-        });
+    $('a').each((_, element) => {
+        const $el = $(element)
+        const text = $el.text().trim()
+        const href = $el.attr('href')
+        const id = $el.attr('id')
+        const dataTestId = $el.attr('data-testid')
+        let locator = ''
+        let elementName = ''
+        if (dataTestId) {
+            locator = `cy.get('[data-testid="${dataTestId}"]')`
+            elementName = `link_${dataTestId.replace(/[^a-zA-Z0-9]/g, '_')}`
+        } else if (id) {
+            locator = `cy.get('#${id}')`
+            elementName = `link_${id.replace(/[^a-zA-Z0-9]/g, '_')}`
+        } else if (text) {
+            locator = `cy.contains('a', '${text}')`
+            elementName = `link_${text.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`
+        } else if (href) {
+            locator = `cy.get('a[href="${href}"]')`
+            elementName = `link_${href.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`
+        } else {
+            locator = `cy.get('a').eq(${elementCounter - 1})`
+            elementName = `link_${elementCounter.replace(/[^a-zA-Z0-9]/g, '_')}`
+        }
+        elements.push(`    ${elementName}: () => ${locator}`)
+        getters.push(`    get ${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}() }`)
+        interactionMethods.push(`    click${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().click() }`)
+        valueGetters.push(`    getText${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('text') }`)
+        elementMeta.push({ type: 'link', elementName })
+        elementCounter++
+    })
     // SELECTS
-        $('select').each((i, element) => {
-            const $el = $(element);
-            const { locator, rawName } = getLocatorAndRawName($el, 'select', { index: i });
-            const elementName = toCamelCase(rawName);
-            elements.push(`    ${elementName}: () => ${locator}`);
-            getters.push(`    get ${elementName}() { return this.#elements.${elementName}() }`);
-            interactionMethods.push(`    select${elementName.charAt(0).toUpperCase() + elementName.slice(1)}(value) { return this.#elements.${elementName}().select(value) }`);
-            valueGetters.push(`    getValue${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('val') }`);
-            elementCounter++;
-        });
+    $('select').each((_, element) => {
+        const $el = $(element)
+        const id = $el.attr('id')
+        const name = $el.attr('name')
+        const dataTestId = $el.attr('data-testid')
+        let locator = ''
+        let elementName = ''
+        if (dataTestId) {
+            locator = `cy.get('[data-testid="${dataTestId}"]')`
+            elementName = `select_${dataTestId.replace(/[^a-zA-Z0-9]/g, '_')}`
+        } else if (id) {
+            locator = `cy.get('#${id}')`
+            elementName = `select_${id.replace(/[^a-zA-Z0-9]/g, '_')}`
+        } else if (name) {
+            locator = `cy.get('select[name="${name}"]')`
+            elementName = `select_${name.replace(/[^a-zA-Z0-9]/g, '_')}`
+        } else {
+            locator = `cy.get('select').eq(${elementCounter - 1})`
+            elementName = `select_${elementCounter.replace(/[^a-zA-Z0-9]/g, '_')}`
+        }
+        elements.push(`    ${elementName}: () => ${locator}`)
+        getters.push(`    get ${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}() }`)
+        interactionMethods.push(`    select${elementName.charAt(0).toUpperCase() + elementName.slice(1)}(value) { return this.#elements.${elementName}().select(value) }`)
+        valueGetters.push(`    getValue${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('val') }`)
+        elementMeta.push({ type: 'select', elementName })
+        elementCounter++
+    })
     // TEXTAREAS
-        $('textarea').each((i, element) => {
-            const $el = $(element);
-            const { locator, rawName } = getLocatorAndRawName($el, 'textarea', { index: i });
-            const elementName = toCamelCase(rawName);
-            elements.push(`    ${elementName}: () => ${locator}`);
-            getters.push(`    get ${elementName}() { return this.#elements.${elementName}() }`);
-            interactionMethods.push(`    type${elementName.charAt(0).toUpperCase() + elementName.slice(1)}(text) { return this.#elements.${elementName}().type(text) }`);
-            interactionMethods.push(`    clear${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().clear() }`);
-            valueGetters.push(`    getValue${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('val') }`);
-            elementCounter++;
-        });    
+    $('textarea').each((_, element) => {
+        const $el = $(element)
+        const id = $el.attr('id')
+        const name = $el.attr('name')
+        const placeholder = $el.attr('placeholder')
+        const dataTestId = $el.attr('data-testid')
+        let locator = ''
+        let elementName = ''
+        if (dataTestId) {
+            locator = `cy.get('[data-testid="${dataTestId}"]')`
+            elementName = `textarea_${dataTestId.replace(/[^a-zA-Z0-9]/g, '_')}`
+        } else if (id) {
+            locator = `cy.get('#${id}')`
+            elementName = `textarea_${id.replace(/[^a-zA-Z0-9]/g, '_')}`
+        } else if (name) {
+            locator = `cy.get('textarea[name="${name}"]')`
+            elementName = `textarea_${name.replace(/[^a-zA-Z0-9]/g, '_')}`
+        } else if (placeholder) {
+            locator = `cy.get('textarea[placeholder="${placeholder}"]')`
+            elementName = `textarea_${placeholder.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`
+        } else {
+            locator = `cy.get('textarea').eq(${elementCounter - 1})`
+            elementName = `textarea_${elementCounter.replace(/[^a-zA-Z0-9]/g, '_')}`
+        }
+        elements.push(`    ${elementName}: () => ${locator}`)
+        getters.push(`    get ${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}() }`)
+        interactionMethods.push(`    type${elementName.charAt(0).toUpperCase() + elementName.slice(1)}(text) { return this.#elements.${elementName}().type(text) }`)
+        interactionMethods.push(`    clear${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().clear() }`)
+        valueGetters.push(`    getValue${elementName.charAt(0).toUpperCase() + elementName.slice(1)}() { return this.#elements.${elementName}().invoke('val') }`)
+        elementMeta.push({ type: 'textarea', elementName })
+        elementCounter++
+    })
+    // (Meta map previously used for bulk methods retained only if needed in future; not required now.)
+    const metaMap = elementMeta.reduce((acc, m) => { acc[m.elementName] = m.type; return acc }, {})
+    // Generate workflow methods based on detected elements
+    const hasLoginForm = $('form').length > 0 && ($('input[type="password"]').length > 0 || $('input[name*="password"]').length > 0)
+    const hasSearchForm = $('input[type="search"]').length > 0 || $('input[placeholder*="search"]').length > 0
+    const hasSubmitButton = $('button[type="submit"]').length > 0 || $('input[type="submit"]').length > 0
+    const hasRegistrationForm = $('form').filter((_, f) => {
+        const txt = $(f).text().toLowerCase()
+        return txt.includes('register') || txt.includes('signup') || txt.includes('create account') || txt.includes('sign up')
+    }).length > 0
+    
+    if (hasLoginForm) {
+        workflowMethods.push(`
+    // Login workflow
+    login(username, password) {
+        const usernameInput = this.getInputUsername ? this.getInputUsername() : this.getInputEmail()
+        const passwordInput = this.getInputPassword()
+        const submitButton = this.getButtonSubmit ? this.getButtonSubmit() : this.getButtonLogin()
+        
+        if (usernameInput) usernameInput.type(username)
+        if (passwordInput) passwordInput.type(password)
+        if (submitButton) submitButton.click()
+        
+        return this
+    }`)
+    }
+    
+    if (hasSearchForm) {
+        workflowMethods.push(`
+    // Search workflow
+    search(query) {
+        const searchInput = this.getInputSearch ? this.getInputSearch() : this.getInputQuery()
+        const searchButton = this.getButtonSearch ? this.getButtonSearch() : this.getButtonSubmit()
+        
+        if (searchInput) searchInput.type(query)
+        if (searchButton) searchButton.click()
+        
+        return this
+    }`)
+    }
+    
+    if (hasRegistrationForm) {
+        workflowMethods.push(`
+    // Registration workflow
+    register(user, email, password) {
+        const userInput = this.getInputUsername ? this.getInputUsername() : (this.getInputUser ? this.getInputUser() : (this.getInputName ? this.getInputName() : this.getInputEmail ? this.getInputEmail() : null))
+        const emailInput = this.getInputEmail ? this.getInputEmail() : null
+        const passwordInput = this.getInputPassword ? this.getInputPassword() : (this.getInputPass ? this.getInputPass() : null)
+        const submitButton = this.getButtonRegister ? this.getButtonRegister() : (this.getButtonSignup ? this.getButtonSignup() : (this.getButtonSubmit ? this.getButtonSubmit() : null))
+        if (userInput) userInput.type(user)
+        if (emailInput && email) emailInput.type(email)
+        if (passwordInput) passwordInput.type(password)
+        if (submitButton) submitButton.click()
+        return this
+    }`)
+    }
+
+    // Add common workflow methods
+    workflowMethods.push(`
+    // Navigation workflow
+    navigateToHome() {
+        const homeLink = this.getLinkHome ? this.getLinkHome() : this.getLinkLogo()
+        if (homeLink) homeLink.click()
+        return this
+    }
+    
+    // Form submission workflow
+    submitForm() {
+        const submitButton = this.getButtonSubmit ? this.getButtonSubmit() : this.getButtonLogin()
+        if (submitButton) submitButton.click()
+        return this
+    }
+    
+    // Wait for page load
+    waitForPageLoad() {
+        cy.wait(1000) // Adjust as needed
+        return this
+    }
+    
+    // Verify page loaded
+    verifyPageLoaded() {
+        cy.url().should('include', '${new URL(url).hostname}')
+        return this
+    }`)
+    
     return {
-        classCode: `export class ${className} {\n  // Private elements\n  #elements = {\n${elements.join(',\n')}\n  }\n\n  // Element meta (currently not used for bulk actions)\n\n  // Public getters\n${getters.join('\n')}\n\n  // Value/State getters\n${valueGetters.join('\n')}\n\n  // Interaction methods (per-element actions)\n${interactionMethods.join('\n')}\n}\n`,
+        classCode: `export class ${className} {\n  // Private elements\n  #elements = {\n${elements.join(',\n')}\n  }\n\n  // Element meta (currently not used for bulk actions)\n  #meta = ${JSON.stringify(metaMap, null, 2)}\n\n  // Public getters\n${getters.join('\n')}\n\n  // Value/State getters\n${valueGetters.join('\n')}\n\n  // Interaction methods (per-element actions)\n${interactionMethods.join('\n')}\n\n  // Workflow methods\n${workflowMethods.join('\n')}\n}\n`,
         className,
-        featureName
+        featureName,
+        elementMeta
     }
 }
 
-// Utility: Infer the page object class name from HTML or URL
+// Helper function to generate class name from URL
+function generateClassName(url) {
+    const urlObj = new URL(url)
+    const hostname = urlObj.hostname.replace(/[^a-zA-Z0-9]/g, '')
+    const pathname = urlObj.pathname.replace(/[^a-zA-Z0-9]/g, '')
+    
+    let className = hostname.charAt(0).toUpperCase() + hostname.slice(1)
+    if (pathname && pathname !== '/') {
+        className += pathname.charAt(0).toUpperCase() + pathname.slice(1)
+    }
+    
+    return `${className}Page`
+}
+
+// Utility: Infer a feature/page name from HTML or URL
 function getFeatureName($, url) {
     // Try form name/id
     let name = $('form').attr('name') || $('form').attr('id')
@@ -352,15 +477,14 @@ function sanitizeFeatureName(name) {
     return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
 }
 
-
 // Copilot generated code ends here
 
 // Tools (updated to registerTool API replacing deprecated server.tool style)
 server.registerTool(
-    'create_Page_Object_file',
+    'generatePageObjectFile',
     {
-        title: 'Create Page Object File',
-        description: 'Create Page Object file directly in the Cypress project by analyzing the provided URL',
+        title: 'Create Cypress Page Object File',
+        description: 'Create Page Object file in the Cypress project',
         inputSchema: {
             url: z.string().describe('URL of the web page'),
             workspacePath: z.string().optional().describe('Workspace path (optional, it is detected automatically if not provided)'),
@@ -369,25 +493,27 @@ server.registerTool(
     },
     async ({ url, workspacePath, pageObjectName }) => {
         const fileManager = new CypressFileManager()
-        try {
-            const workspaceRoot = await fileManager.detectWorkspace(workspacePath)
-            await fileManager.ensureDirectoryStructure(workspaceRoot)
+        let pageObjectMeta = null
+        try {            
+            //const workspaceRoot = await fileManager.detectWorkspace(workspacePath)
+            //await fileManager.ensureDirectoryStructure(workspaceRoot)
             const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] })
             const page = await browser.newPage()
             await page.goto(url, { waitUntil: 'networkidle2' })
             const html = await page.content()
             await browser.close()
             const $ = cheerio.load(html)
-            const pageObjectMeta = generatePageObjectClass($, url, pageObjectName)
+            pageObjectMeta = generatePageObjectClass($, url, pageObjectName)
+            
             const pageObjectPath = await fileManager.createPageObject(workspaceRoot, url, pageObjectMeta)
-            const indexPath = await fileManager.createIndexFile(workspaceRoot)
             return {
                 content: [
-                    { type: 'text', text: `✅ Files created successfully:\n\n📄 Page Object: ${pageObjectPath}\n📋 Index File: ${indexPath}\n\nWorkspace detected: ${workspaceRoot}\n\nNow you can import the page object in your tests using:\nimport { ${pageObjectMeta.className} } from '../pages/${pageObjectMeta.featureName}'` }
+                    { type: 'text', text: `✅ File created successfully:\n\n📄 Page Object: ${pageObjectPath}\n📋 Index File: ${indexPath}\n\nWorkspace detected: ${workspaceRoot}\n\nNow you can import the page object in your tests using:\nimport { ${pageObjectMeta.className} } from '../pages/${pageObjectMeta.featureName}'` }
                 ]
             }
         } catch (error) {
-            return { content: [ { type: 'text', text: `❌ Error creating Cypress files: ${error instanceof Error ? error.message : 'Unknown error'}\n\nMake sure you are in a directory with a valid Cypress project.` } ] }
+            
+            return { content: [ { type: 'text', text: `❌ Error creating Cypress file: ${error instanceof Error ? error.message : 'Unknown error'}\n\nMake sure you are in a directory with a valid Cypress project.\n\nElement Meta:\n${JSON.stringify(pageObjectMeta, null, 2)}\n\n` } ] }
         }
     }
 )

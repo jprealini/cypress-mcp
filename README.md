@@ -69,14 +69,14 @@ Follow standard procedures to install an MCP in the client of your choice
    ```
 
 2. **Use with an MCP client:**
-   The server exposes a `create_Page_Object_file` tool that accepts a URL parameter.
+   The server exposes a `generatePageObjectFile` tool that accepts a URL parameter.
 
    Example tool call:
    ```json
    {
      "method": "tools/call",
      "params": {
-       "name": "create_Page_Object_file",
+       "name": "generatePageObjectFile",
        "arguments": {
          "url": "https://example.com/login"
        }
@@ -123,23 +123,22 @@ To add support for new element types, interaction methods, or test patterns, mod
 
 ## Troubleshooting: Updating to the Latest MCP Version
 
-If you publish a new version of this MCP and consumers do not see the update immediately, follow these steps:
+If you are intending to update to the latest version of this MCP server package but the new version is not being pulled by npm, try this:
 
-1. **Always increment the version in `package.json` before publishing.**
-2. **Clear the NPM cache and reinstall the package:**
+1. **Clear the NPM cache and reinstall the package:**
    ```sh
    npm cache clean --force
    npm install @jprealini/cypress-mcp@latest --save-dev
    ```
-3. **If using a lockfile (`package-lock.json` or `yarn.lock`), delete it and run:**
+2. **If using a lockfile (`package-lock.json` or `yarn.lock`), delete it and run:**
    ```sh
    npm install
    ```
-4. **For global installs, update globally:**
+3. **For global installs, update globally:**
    ```sh
    npm install -g @jprealini/cypress-mcp@latest
    ```
-5. **Verify the installed version:**
+4. **Verify the installed version:**
    ```sh
    npm list @jprealini/cypress-mcp
    ```
